@@ -1,0 +1,40 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build
+bin/
+obj/
+
+# Logs
+*.log
+
+# Node
+node_modules/
+dist/
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# App settings with secrets
+appsettings.Development.json
+appsettings.*.local.json
+
+# Publish / Azure
+PublishProfiles/
+*.pubxml
+*.publishsettings
+
+# Coverage / temp
+coverage/
+tmp/
+temp/
