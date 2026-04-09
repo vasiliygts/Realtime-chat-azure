@@ -9,9 +9,17 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
+//builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<ChatDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"),
+            sqlOptions =>
+            {
+                sqlOptions.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(10),
+                    errorNumbersToAdd: null);
+            }));
 
 builder.Services.AddScoped<IMessageService, MessageService>();
 
@@ -36,7 +44,18 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/openapi/v1.json", "Chat.Api v1");
+    });
 }
+
+//if (app.Environment.IsDevelopment())
+//{
+//    app.MapOpenApi();
+    //app.UseSwagger();
+    //app.UseSwaggerUI();
+//}
 
 app.UseHttpsRedirection();
 
