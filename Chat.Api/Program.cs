@@ -3,6 +3,7 @@ using Chat.Api.Hubs;
 using Chat.Api.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Azure.SignalR;
+using Chat.Api.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,6 +23,11 @@ builder.Services.AddDbContext<ChatDbContext>(options =>
             }));
 
 builder.Services.AddScoped<IMessageService, MessageService>();
+
+builder.Services.Configure<AzureLanguageOptions>(
+    builder.Configuration.GetSection("Azure:Language"));
+
+builder.Services.AddScoped<ISentimentAnalysisService, SentimentAnalysisService>();
 
 builder.Services.AddCors(options =>
 {
