@@ -1,224 +1,284 @@
-import { useEffect, useRef, useState } from 'react';
-import type { FormEvent, KeyboardEvent  } from 'react';
-import { HubConnection, HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
+import {useEffect, useRef, useState} from 'react';
+import type {FormEvent, KeyboardEvent} from 'react';
+import {HubConnection, HubConnectionBuilder, LogLevel} from '@microsoft/signalr';
 import './App.css';
 
 type ChatMessage = {
-  id: number;
-  userName: string;
-  text: string;
-  createdAtUtc: string;
-  sentiment?: string | null;
-  sentimentScore?: number | null;
+    id: number;
+    userName: string;
+    text: string;
+    createdAtUtc: string;
+    sentiment?: string | null;
+    sentimentScore?: number | null;
 };
 
 const apiBaseUrl = 'https://localhost:7096';
 
 function App() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [userName, setUserName] = useState('');
-  const [text, setText] = useState('');
-  const [isConnected, setIsConnected] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [userName, setUserName] = useState('');
+    const [text, setText] = useState('');
+    const [isConnected, setIsConnected] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
-  const connectionRef = useRef<HubConnection | null>(null);
-  const isStartingConnectionRef = useRef(false);
-  const isInitializedRef = useRef(false);
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+    const connectionRef = useRef<HubConnection | null>(null);
+    const isStartingConnectionRef = useRef(false);
+    const isInitializedRef = useRef(false);
+    const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
+    useEffect(() => {
+        let isMounted = true;
 
-    const initializeChat = async () => {
-      if (isInitializedRef.current) {
-        return;
-      }
+        const initializeChat = async () => {
+            if (isInitializedRef.current) {
+                return;
+            }
 
-      isInitializedRef.current = true;
+            isInitializedRef.current = true;
 
-      await loadMessages(isMounted);
-      await startSignalRConnection();
+            await loadMessages(isMounted);
+            await startSignalRConnection();
+        };
+
+        initializeChat();
+
+        return () => {
+            isMounted = false;
+
+            if (connectionRef.current) {
+                connectionRef.current.stop();
+                connectionRef.current = null;
+            }
+
+            isStartingConnectionRef.current = false;
+        };
+    }, []);
+
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({behavior: 'smooth'});
+    }, [messages]);
+
+    const loadMessages = async (isMounted = true) => {
+        try {
+            const response = await fetch(`${apiBaseUrl}/api/messages`);
+            if (!response.ok) {
+                throw new Error(`Failed to load messages: ${response.status}`);
+            }
+
+            const data: ChatMessage[] = await response.json();
+
+            if (isMounted) {
+                setMessages(data);
+            }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            if (isMounted) {
+                setIsLoading(false);
+            }
+        }
     };
 
-    initializeChat();
+    const startSignalRConnection = async () => {
+        if (connectionRef.current || isStartingConnectionRef.current) {
+            return;
+        }
 
-    return () => {
-      isMounted = false;
+        try {
+            isStartingConnectionRef.current = true;
 
-      if (connectionRef.current) {
-        connectionRef.current.stop();
-        connectionRef.current = null;
-      }
+            const connection = new HubConnectionBuilder()
+                .withUrl(`${apiBaseUrl}/chatHub`)
+                .withAutomaticReconnect()
+                .configureLogging(LogLevel.Information)
+                .build();
 
-      isStartingConnectionRef.current = false;
+            connection.on('ReceiveMessage', (message: ChatMessage) => {
+                setMessages((prev) => {
+                    const alreadyExists = prev.some((m) => m.id === message.id);
+                    if (alreadyExists) {
+                        return prev;
+                    }
+
+                    return [...prev, message];
+                });
+            });
+
+            connection.onreconnected(() => {
+                setIsConnected(true);
+            });
+
+            connection.onreconnecting(() => {
+                setIsConnected(false);
+            });
+
+            connection.onclose(() => {
+                setIsConnected(false);
+            });
+
+            await connection.start();
+
+            connectionRef.current = connection;
+            setIsConnected(true);
+        } catch (error) {
+            console.error('SignalR connection error:', error);
+            setIsConnected(false);
+        } finally {
+            isStartingConnectionRef.current = false;
+        }
     };
-  }, []);
+    // <-- NEW: винесли логіку відправки в окрему функцію,
+    // щоб її використовували і кнопка Send, і клавіша Enter
+    const sendMessage = async () => {
+        if (!userName.trim() || !text.trim()) {
+            return;
+        }
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+        if (!connectionRef.current || connectionRef.current.state !== 'Connected') {
+            return;
+        }
 
-  const loadMessages = async (isMounted = true) => {
-    try {
-      const response = await fetch(`${apiBaseUrl}/api/messages`);
-      if (!response.ok) {
-        throw new Error(`Failed to load messages: ${response.status}`);
-      }
+        try {
+            await connectionRef.current.invoke('SendMessage', {
+                userName: userName.trim(),
+                text: text.trim()
+            });
 
-      const data: ChatMessage[] = await response.json();
+            setText('');
+        } catch (error) {
+            console.error('Send message error:', error);
+        }
+    };
 
-      if (isMounted) {
-        setMessages(data);
-      }
-    } catch (error) {
-      console.error(error);
-    } finally {
-      if (isMounted) {
-        setIsLoading(false);
-      }
-    }
-  };
+    // <-- CHANGED:  submit форми просто викликає sendMessage()
+    const handleSendMessage = async (e: FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        await sendMessage();
+    };
 
-  const startSignalRConnection = async () => {
-    if (connectionRef.current || isStartingConnectionRef.current) {
-      return;
-    }
+    // <-- NEW: обробка Enter у textarea
+    // Enter = відправити
+    // Shift + Enter = новий рядок
+    const handleTextKeyDown = async (e: KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            await sendMessage();
+        }
+    };
 
-    try {
-      isStartingConnectionRef.current = true;
+    // нове
+    const formatSentiment = (sentiment?: string | null) => {
+        if (!sentiment) {
+            return 'unknown';
+        }
 
-      const connection = new HubConnectionBuilder()
-          .withUrl(`${apiBaseUrl}/chatHub`)
-          .withAutomaticReconnect()
-          .configureLogging(LogLevel.Information)
-          .build();
+        return sentiment;
+    };
 
-      connection.on('ReceiveMessage', (message: ChatMessage) => {
-        setMessages((prev) => {
-          const alreadyExists = prev.some((m) => m.id === message.id);
-          if (alreadyExists) {
-            return prev;
-          }
+    const formatSentimentScore = (score?: number | null) => {
+        if (score === null || score === undefined) {
+            return 'n/a';
+        }
 
-          return [...prev, message];
-        });
-      });
+        return score.toFixed(2);
+    };
 
-      connection.onreconnected(() => {
-        setIsConnected(true);
-      });
+    const getSentimentBadgeClass = (sentiment?: string | null) => {
+        switch (sentiment?.toLowerCase()) {
+            case 'positive':
+                return 'sentiment-positive';
+            case 'negative':
+                return 'sentiment-negative';
+            case 'neutral':
+                return 'sentiment-neutral';
+            default:
+                return 'sentiment-unknown';
+        }
+    };
 
-      connection.onreconnecting(() => {
-        setIsConnected(false);
-      });
+    const getSentimentCardClass = (sentiment?: string | null) => {
+        switch (sentiment?.toLowerCase()) {
+            case 'positive':
+                return 'message-positive';
+            case 'negative':
+                return 'message-negative';
+            case 'neutral':
+                return 'message-neutral';
+            default:
+                return '';
+        }
+    };
 
-      connection.onclose(() => {
-        setIsConnected(false);
-      });
-
-      await connection.start();
-
-      connectionRef.current = connection;
-      setIsConnected(true);
-    } catch (error) {
-      console.error('SignalR connection error:', error);
-      setIsConnected(false);
-    } finally {
-      isStartingConnectionRef.current = false;
-    }
-  };
-  // <-- NEW: винесли логіку відправки в окрему функцію,
-  // щоб її використовували і кнопка Send, і клавіша Enter
-  const sendMessage = async () => {
-    if (!userName.trim() || !text.trim()) {
-      return;
-    }
-
-    if (!connectionRef.current || connectionRef.current.state !== 'Connected') {
-      return;
-    }
-
-    try {
-      await connectionRef.current.invoke('SendMessage', {
-        userName: userName.trim(),
-        text: text.trim()
-      });
-
-      setText('');
-    } catch (error) {
-      console.error('Send message error:', error);
-    }
-  };
-
-  // <-- CHANGED:  submit форми просто викликає sendMessage()
-  const handleSendMessage = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    await sendMessage();
-  };
-
-  // <-- NEW: обробка Enter у textarea
-  // Enter = відправити
-  // Shift + Enter = новий рядок
-  const handleTextKeyDown = async (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      await sendMessage();
-    }
-  };
-
-  return (
-      <div className="page">
-        <div className="chat-card">
-          <div className="chat-header">
-            <h1>Realtime Chat</h1>
-            <span className={isConnected ? 'status online' : 'status offline'}>
+    return (
+        <div className="page">
+            <div className="chat-card">
+                <div className="chat-header">
+                    <h1>Realtime Chat</h1>
+                    <span className={isConnected ? 'status online' : 'status offline'}>
             {isConnected ? 'Connected' : 'Disconnected'}
           </span>
-          </div>
+                </div>
 
-          <div className="messages-box">
-            {isLoading ? (
-                <div className="empty-state">Loading messages...</div>
-            ) : messages.length === 0 ? (
-                <div className="empty-state">No messages yet.</div>
-            ) : (
-                messages.map((message) => (
+                <div className="messages-box">
+                    {isLoading ? (
+                        <div className="empty-state">Loading messages...</div>
+                    ) : messages.length === 0 ? (
+                        <div className="empty-state">No messages yet.</div>
+                    ) : (
+                        messages.map((message) => {
+                            const cardClass = `message-item ${getSentimentCardClass(message.sentiment)}`;
+                            const sentimentClass = `message-sentiment ${getSentimentBadgeClass(message.sentiment)}`;
 
-                    <div key={message.id} className="message-item">
-                      <div className="message-user">{message.userName}</div>
-                      <div className="message-text">{message.text}</div>
-                      <div className="message-date">
-                        {new Date(message.createdAtUtc).toLocaleString()}
-                      </div>
-                    </div>
-                ))
+                            return (
+                                <div key={message.id} className={cardClass}>
+                                    <div className="message-user">{message.userName}</div>
 
-            )}
+                                    <div className="message-text-block">
+                                        <div className="message-text">{message.text}</div>
 
-            <div ref={messagesEndRef} />
-          </div>
+                                        <div className="message-sentiment-row">
+          <span className={sentimentClass}>
+            Sentiment: {formatSentiment(message.sentiment)}
+          </span>
 
-          <form className="message-form" onSubmit={handleSendMessage}>
-            <input
-                type="text"
-                placeholder="Your name"
-                value={userName}
-                onChange={(e) => setUserName(e.target.value)}
-            />
+                                            <span className="message-score">
+            Confidence: {formatSentimentScore(message.sentimentScore)}
+          </span>
+                                        </div>
+                                    </div>
 
-            <textarea
-                placeholder="Type a message"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onKeyDown={handleTextKeyDown} // <-- NEW: додали сюди
-                rows={2}
-            />
+                                    <div className="message-date">
+                                        {new Date(message.createdAtUtc).toLocaleString()}
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
 
-            <button type="submit">Send</button>
-          </form>
+                    <div ref={messagesEndRef}/>
+                </div>
+
+                <form className="message-form" onSubmit={handleSendMessage}>
+                    <input
+                        type="text"
+                        placeholder="Your name"
+                        value={userName}
+                        onChange={(e) => setUserName(e.target.value)}
+                    />
+
+                    <textarea
+                        placeholder="Type a message"
+                        value={text}
+                        onChange={(e) => setText(e.target.value)}
+                        onKeyDown={handleTextKeyDown} // <-- NEW: додали сюди
+                        rows={2}
+                    />
+
+                    <button type="submit">Send</button>
+                </form>
+            </div>
         </div>
-      </div>
-  );
+    );
 }
 
 export default App;
