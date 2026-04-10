@@ -127,8 +127,7 @@ function App() {
             isStartingConnectionRef.current = false;
         }
     };
-    // <-- NEW: винесли логіку відправки в окрему функцію,
-    // щоб її використовували і кнопка Send, і клавіша Enter
+
     const sendMessage = async () => {
         if (!userName.trim() || !text.trim()) {
             return;
@@ -150,15 +149,11 @@ function App() {
         }
     };
 
-    // <-- CHANGED:  submit форми просто викликає sendMessage()
     const handleSendMessage = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         await sendMessage();
     };
 
-    // <-- NEW: обробка Enter у textarea
-    // Enter = відправити
-    // Shift + Enter = новий рядок
     const handleTextKeyDown = async (e: KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
@@ -166,8 +161,7 @@ function App() {
         }
     };
 
-    // нове
-    const formatSentiment = (sentiment?: string | null) => {
+і    const formatSentiment = (sentiment?: string | null) => {
         if (!sentiment) {
             return 'unknown';
         }
