@@ -37,6 +37,8 @@ jobs:
         run: npm ci
 
       - name: Build app
+        env:
+          VITE_API_BASE_URL: "https://app-realtime-chat-api-vasiliygts-ehhyhcfgh4buejda.polandcentral-01.azurewebsites.net"
         run: npm run build
 
       - name: Test app
