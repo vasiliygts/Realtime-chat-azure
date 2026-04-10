@@ -7,6 +7,9 @@ on:
   push:
     branches:
       - dev
+    paths:
+      - 'Chat.Api/**'
+      - '.github/workflows/dev_app-realtime-chat-api-vasiliygts.yml'  
   workflow_dispatch:
 
 jobs:
@@ -23,17 +26,20 @@ jobs:
         with:
           dotnet-version: '8.x'
 
-      - name: Build with dotnet
-        run: dotnet build --configuration Release
+      - name: Restore
+        run: dotnet restore ./Chat.Api/Chat.Api.csproj
 
-      - name: dotnet publish
-        run: dotnet publish -c Release -o ${{env.DOTNET_ROOT}}/myapp
+      - name: Build
+        run: dotnet build ./Chat.Api/Chat.Api.csproj --configuration Release --no-restore
+
+      - name: Publish
+        run: dotnet publish ./Chat.Api/Chat.Api.csproj --configuration Release --no-build --output ./publish
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
-          name: .net-app
-          path: ${{env.DOTNET_ROOT}}/myapp
+          name: api-app
+          path: ./publish
 
   deploy:
     runs-on: ubuntu-latest
@@ -43,7 +49,8 @@ jobs:
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
-          name: .net-app
+          name: api-app
+          path: ./publish
       
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
@@ -51,5 +58,5 @@ jobs:
         with:
           app-name: 'app-realtime-chat-api-vasiliygts'
           slot-name: 'Production'
-          package: .
+          package: ./publish
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_1C14F1E2614F41FB96A56DB2BE7F6991 }}
