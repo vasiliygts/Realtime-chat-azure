@@ -53,28 +53,7 @@ public class SentimentAnalysisService : ISentimentAnalysisService
                 TextSentiment.Neutral => (decimal)response.Value.ConfidenceScores.Neutral,
                 TextSentiment.Mixed => (decimal)response.Value.ConfidenceScores.Positive,
                 _ => (decimal?)null
-            };
-
-            // те саме 
-
-            //double? score = null;
-
-            //if (response.Value.Sentiment == TextSentiment.Positive)
-            //{
-            //    score = response.Value.ConfidenceScores.Positive;
-            //}
-            //else if (response.Value.Sentiment == TextSentiment.Negative)
-            //{
-            //    score = response.Value.ConfidenceScores.Negative;
-            //}
-            //else if (response.Value.Sentiment == TextSentiment.Neutral)
-            //{
-            //    score = response.Value.ConfidenceScores.Neutral;
-            //}
-            //else if (response.Value.Sentiment == TextSentiment.Mixed)
-            //{
-            //    score = response.Value.ConfidenceScores.Positive;
-            //}
+            };                     
 
             return new SentimentAnalysisResult
             {

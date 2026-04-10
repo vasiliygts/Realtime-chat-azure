@@ -85,7 +85,6 @@ body {
 
 .message-item {
   display: grid;
-  /*grid-template-columns: minmax(90px, 160px) 1fr auto;*/
   grid-template-columns: minmax(120px, 220px) 1fr auto;
   gap: 12px;
   padding: 10px 12px;
@@ -101,10 +100,7 @@ body {
   font-size: 15px;
   font-weight: 700;
   color: #344054;
-  /*white-space: nowrap;*/
   white-space: normal;
-  /*overflow: hidden;*/
-  /*text-overflow: ellipsis;*/
   word-break: break-word;
   overflow-wrap: anywhere;
 }
