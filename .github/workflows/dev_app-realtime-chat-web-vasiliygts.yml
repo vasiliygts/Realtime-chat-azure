@@ -7,6 +7,9 @@ on:
   push:
     branches:
       - dev
+    paths:
+      - 'Chat.Web/**'
+      - '.github/workflows/dev_app-realtime-chat-web-vasiliygts.yml'  
   workflow_dispatch:
 
 jobs:
@@ -15,25 +18,35 @@ jobs:
     permissions:
       contents: read #This is required for actions/checkout
 
+    defaults:
+      run:
+        working-directory: ./Chat.Web
+        
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Set up Node.js version
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '22.x'
+          cache: 'npm'
+          cache-dependency-path: ./Chat.Web/package-lock.json
+          
+      - name: Install dependencies
+        run: npm ci
 
-      - name: npm install, build, and test
-        run: |
-          npm install
-          npm run build --if-present
-          npm run test --if-present
+      - name: Build app
+        run: npm run build
+
+      - name: Test app
+        run: npm run test --if-present
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: .
+          path: ./Chat.Web
 
   deploy:
     runs-on: ubuntu-latest
@@ -44,12 +57,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: node-app
-      
+          path: ./node-app
+          
       - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'app-realtime-chat-web-vasiliygts'
           slot-name: 'Production'
-          package: .
+          package: ./node-app
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_B6665A3FD6D1405FA0CED57CB36B2346 }}
