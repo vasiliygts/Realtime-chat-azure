@@ -8,10 +8,13 @@ namespace Chat.Api.Services
     public class MessageService : IMessageService
     {
         private readonly ChatDbContext _context;
+        private readonly ISentimentAnalysisService _sentimentAnalysisService;
 
-        public MessageService(ChatDbContext context)
+        public MessageService(ChatDbContext context,
+            ISentimentAnalysisService sentimentAnalysisService)
         {
             _context = context;
+            _sentimentAnalysisService = sentimentAnalysisService;
         }
 
         public async Task<List<ChatMessage>> GetMessagesAsync()
@@ -29,13 +32,19 @@ namespace Chat.Api.Services
                 return null;
             }
 
+            string trimmedUserName = request.UserName.Trim();
+            string trimmedText = request.Text.Trim();
+
+            SentimentAnalysisResult sentimentResult =
+                await _sentimentAnalysisService.AnalyzeAsync(trimmedText);
+
             ChatMessage message = new ChatMessage
             {
-                UserName = request.UserName.Trim(),
-                Text = request.Text.Trim(),
+                UserName = trimmedUserName,
+                Text = trimmedText,
                 CreatedAtUtc = DateTime.UtcNow,
-                Sentiment = null,
-                SentimentScore = null
+                Sentiment = sentimentResult.Sentiment,
+                SentimentScore = sentimentResult.SentimentScore
             };
 
             _context.ChatMessages.Add(message);
