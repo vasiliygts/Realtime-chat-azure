@@ -1,15 +1,17 @@
 using Chat.Api.Data;
 using Chat.Api.Hubs;
-using Chat.Api.Services;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Azure.SignalR;
 using Chat.Api.Options;
+using Chat.Api.Services;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Azure.SignalR;
+using Microsoft.EntityFrameworkCore;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddOpenApi();
+builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<ChatDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"),
@@ -48,10 +50,10 @@ var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
     app.UseSwaggerUI(options =>
     {
-        options.SwaggerEndpoint("/openapi/v1.json", "Chat.Api v1");
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Chat.Api v1");
     });
 }
 

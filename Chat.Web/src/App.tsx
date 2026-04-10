@@ -12,7 +12,8 @@ type ChatMessage = {
     sentimentScore?: number | null;
 };
 
-const apiBaseUrl = 'https://localhost:7096';
+// const apiBaseUrl = 'https://localhost:7096';
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://localhost:7096';
 
 function App() {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -161,7 +162,7 @@ function App() {
         }
     };
 
-і    const formatSentiment = (sentiment?: string | null) => {
+    const formatSentiment = (sentiment?: string | null) => {
         if (!sentiment) {
             return 'unknown';
         }
